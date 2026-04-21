@@ -1,0 +1,22 @@
+{
+  "name": "claude-palace",
+  "private": true,
+  "version": "0.0.1",
+  "description": "A different view into Claude Code activity. Palace + search, powered by the claude-code-karma API.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "packageManager": "bun@1.3.2",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "ui": "bun --filter @repo/ui ui"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "turbo": "^2.9.6",
+    "typescript": "^5.9.3"
+  }
+}
