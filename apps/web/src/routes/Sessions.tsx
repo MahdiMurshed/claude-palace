@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { karma, type AllSessionsResponse } from "@repo/api-client";
 import { useSearchParams } from "react-router-dom";
-import { Search as SearchIcon, X } from "lucide-react";
+import { Search as SearchIcon, X, List, LayoutGrid } from "lucide-react";
 import SessionCard from "../components/SessionCard";
 import {
   DEFAULT_FILTERS,
@@ -32,9 +32,20 @@ const STATUS_OPTIONS: { v: StatusFilter; label: string }[] = [
   { v: "completed", label: "Completed" },
 ];
 
+type ViewMode = "list" | "grid";
+
 export default function Sessions() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
+  const [view, setView] = useState<ViewMode>(() => {
+    if (typeof window === "undefined") return "list";
+    return (localStorage.getItem("sessions.view") as ViewMode) ?? "list";
+  });
+
+  // Persist view choice
+  useEffect(() => {
+    localStorage.setItem("sessions.view", view);
+  }, [view]);
 
   const projectFilter = searchParams.get("project");
 
@@ -142,6 +153,7 @@ export default function Sessions() {
           value={filters.groupBy}
           onChange={(v) => setFilters((f) => ({ ...f, groupBy: v }))}
         />
+        <ViewSegmented value={view} onChange={setView} />
         <FilterSelect
           label="Status"
           value={filters.status}
@@ -254,11 +266,7 @@ export default function Sessions() {
                     ({group.sessions.length})
                   </span>
                 </h2>
-                <div className="space-y-2">
-                  {group.sessions.map((s) => (
-                    <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
-                  ))}
-                </div>
+                <SessionList sessions={group.sessions} allIds={allIds} view={view} />
               </section>
             );
           })}
@@ -273,28 +281,21 @@ export default function Sessions() {
                   {BUCKET_LABELS[bucket]}{" "}
                   <span className="text-muted-foreground/60">({group.length})</span>
                 </h2>
-                <div className="space-y-2">
-                  {group.map((s) => (
-                    <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
-                  ))}
-                </div>
+                <SessionList sessions={group} allIds={allIds} view={view} />
               </section>
             );
           })}
 
         {filters.groupBy === "none" && (
-          <div className="space-y-2">
-            {filtered
-              .slice()
-              .sort((a, b) => {
-                const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
-                const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
-                return tb - ta;
-              })
-              .map((s) => (
-                <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
-              ))}
-          </div>
+          <SessionList
+            sessions={[...filtered].sort((a, b) => {
+              const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
+              const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
+              return tb - ta;
+            })}
+            allIds={allIds}
+            view={view}
+          />
         )}
       </div>
 
@@ -310,6 +311,67 @@ export default function Sessions() {
 // ---------------------------------------------------------------------------
 // Inline subcomponents (will migrate to @repo/ui shadcn primitives later)
 // ---------------------------------------------------------------------------
+
+type SessionListProps = {
+  sessions: import("@repo/api-client").SessionSummary[];
+  allIds: string[];
+  view: ViewMode;
+};
+
+function SessionList({ sessions, allIds, view }: SessionListProps) {
+  if (view === "grid") {
+    return (
+      <div className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
+        {sessions.map((s) => (
+          <SessionCard key={s.uuid} session={s} allProjectIds={allIds} compact />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {sessions.map((s) => (
+        <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
+      ))}
+    </div>
+  );
+}
+
+type ViewSegmentedProps = {
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
+};
+
+function ViewSegmented({ value, onChange }: ViewSegmentedProps) {
+  return (
+    <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5 text-xs">
+      <button
+        type="button"
+        onClick={() => onChange("list")}
+        title="List view"
+        className={`rounded-sm px-2 py-1 transition-colors ${
+          value === "list"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+        }`}
+      >
+        <List className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("grid")}
+        title="Grid view"
+        className={`rounded-sm px-2 py-1 transition-colors ${
+          value === "grid"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+        }`}
+      >
+        <LayoutGrid className="size-3.5" />
+      </button>
+    </div>
+  );
+}
 
 type GroupBySegmentedProps = {
   value: GroupBy;
