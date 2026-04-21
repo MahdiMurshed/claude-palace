@@ -13,6 +13,7 @@ import {
 
 export type StatusFilter = "all" | "completed";
 export type DateRange = "all" | "today" | "7d" | "30d";
+export type GroupBy = "project" | "date" | "none";
 
 export type SessionFilters = {
   tokens: string[];
@@ -20,6 +21,7 @@ export type SessionFilters = {
   branches: Set<string>;
   status: StatusFilter;
   dateRange: DateRange;
+  groupBy: GroupBy;
 };
 
 export const DEFAULT_FILTERS: SessionFilters = {
@@ -28,6 +30,7 @@ export const DEFAULT_FILTERS: SessionFilters = {
   branches: new Set(),
   status: "all",
   dateRange: "all",
+  groupBy: "project",
 };
 
 // --------------------------------------------------------------------------
@@ -175,6 +178,47 @@ export function groupByTime(sessions: SessionSummary[], now = new Date()): Group
     });
   }
   return groups;
+}
+
+// --------------------------------------------------------------------------
+// Project grouping
+// --------------------------------------------------------------------------
+
+export type ProjectGroup = {
+  projectId: string;
+  label: string;
+  sessions: SessionSummary[];
+  /** Most-recent start_time in the group — drives ordering. */
+  lastActive: number;
+};
+
+export function groupByProject(
+  sessions: SessionSummary[],
+  projectLabel: Map<string, string>,
+): ProjectGroup[] {
+  const map = new Map<string, ProjectGroup>();
+  for (const s of sessions) {
+    const id = s.project_encoded_name ?? "(none)";
+    const label = projectLabel.get(id) ?? id;
+    const started = s.start_time ? new Date(s.start_time).getTime() : 0;
+    const existing = map.get(id);
+    if (existing) {
+      existing.sessions.push(s);
+      if (started > existing.lastActive) existing.lastActive = started;
+    } else {
+      map.set(id, { projectId: id, label, sessions: [s], lastActive: started });
+    }
+  }
+  // Sort sessions inside each group by start_time desc
+  for (const g of map.values()) {
+    g.sessions.sort((a, b) => {
+      const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
+      const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
+      return tb - ta;
+    });
+  }
+  // Groups sorted by most-recent activity desc (most-active project at top)
+  return [...map.values()].sort((a, b) => b.lastActive - a.lastActive);
 }
 
 // --------------------------------------------------------------------------

@@ -6,3 +6,4 @@ dist
 *.tsbuildinfo
 .env.local
 .env.*.local
+.gstack/

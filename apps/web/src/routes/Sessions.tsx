@@ -9,13 +9,16 @@ import {
   tokenize,
   applyFilters,
   groupByTime,
+  groupByProject,
   getActiveChips,
   BUCKET_ORDER,
   BUCKET_LABELS,
   type DateRange,
+  type GroupBy,
   type SessionFilters,
   type StatusFilter,
 } from "../lib/sessionFilters";
+import { projectColor } from "../lib/colors";
 
 const DATE_OPTIONS: { v: DateRange; label: string }[] = [
   { v: "all", label: "All time" },
@@ -84,7 +87,11 @@ export default function Sessions() {
     [data?.sessions, filters],
   );
 
-  const grouped = useMemo(() => groupByTime(filtered), [filtered]);
+  const dateGrouped = useMemo(() => groupByTime(filtered), [filtered]);
+  const projectGrouped = useMemo(
+    () => groupByProject(filtered, projectLabel),
+    [filtered, projectLabel],
+  );
 
   const chips = useMemo(
     () => getActiveChips(filters, filters.project ? projectLabel.get(filters.project) : undefined),
@@ -131,6 +138,10 @@ export default function Sessions() {
 
       {/* Filter row */}
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+        <GroupBySegmented
+          value={filters.groupBy}
+          onChange={(v) => setFilters((f) => ({ ...f, groupBy: v }))}
+        />
         <FilterSelect
           label="Status"
           value={filters.status}
@@ -227,23 +238,64 @@ export default function Sessions() {
 
       {/* Grouped session list */}
       <div className="space-y-6">
-        {BUCKET_ORDER.map((bucket) => {
-          const group = grouped[bucket];
-          if (group.length === 0) return null;
-          return (
-            <section key={bucket}>
-              <h2 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                {BUCKET_LABELS[bucket]}{" "}
-                <span className="text-muted-foreground/60">({group.length})</span>
-              </h2>
-              <div className="space-y-2">
-                {group.map((s) => (
-                  <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
+        {filters.groupBy === "project" &&
+          projectGrouped.map((group) => {
+            const color = projectColor(group.projectId, allIds);
+            return (
+              <section key={group.projectId}>
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+                  <span
+                    className="inline-block size-3 rounded-sm"
+                    style={{ background: color.background, borderColor: color.border }}
+                    aria-hidden
+                  />
+                  <span>{group.label}</span>
+                  <span className="text-muted-foreground/60 font-normal">
+                    ({group.sessions.length})
+                  </span>
+                </h2>
+                <div className="space-y-2">
+                  {group.sessions.map((s) => (
+                    <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+        {filters.groupBy === "date" &&
+          BUCKET_ORDER.map((bucket) => {
+            const group = dateGrouped[bucket];
+            if (group.length === 0) return null;
+            return (
+              <section key={bucket}>
+                <h2 className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                  {BUCKET_LABELS[bucket]}{" "}
+                  <span className="text-muted-foreground/60">({group.length})</span>
+                </h2>
+                <div className="space-y-2">
+                  {group.map((s) => (
+                    <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+        {filters.groupBy === "none" && (
+          <div className="space-y-2">
+            {filtered
+              .slice()
+              .sort((a, b) => {
+                const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
+                const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
+                return tb - ta;
+              })
+              .map((s) => (
+                <SessionCard key={s.uuid} session={s} allProjectIds={allIds} />
+              ))}
+          </div>
+        )}
       </div>
 
       {!isLoading && filtered.length === 0 && (
@@ -258,6 +310,41 @@ export default function Sessions() {
 // ---------------------------------------------------------------------------
 // Inline subcomponents (will migrate to @repo/ui shadcn primitives later)
 // ---------------------------------------------------------------------------
+
+type GroupBySegmentedProps = {
+  value: GroupBy;
+  onChange: (v: GroupBy) => void;
+};
+
+function GroupBySegmented({ value, onChange }: GroupBySegmentedProps) {
+  const options: { v: GroupBy; label: string }[] = [
+    { v: "project", label: "Project" },
+    { v: "date", label: "Date" },
+    { v: "none", label: "None" },
+  ];
+  return (
+    <div className="inline-flex items-center gap-1 rounded-md border border-border bg-card p-0.5 text-xs">
+      <span className="px-2 text-muted-foreground">Group</span>
+      {options.map((o) => {
+        const active = value === o.v;
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => onChange(o.v)}
+            className={`rounded-sm px-2 py-1 transition-colors ${
+              active
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 type FilterSelectProps = {
   label: string;
