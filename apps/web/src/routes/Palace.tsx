@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { karma } from "@repo/api-client";
+import { karma, type ProjectFilterOption } from "@repo/api-client";
 import { useNavigate } from "react-router-dom";
 import ProjectTile from "../components/ProjectTile";
 
@@ -7,7 +7,11 @@ export default function Palace() {
   const navigate = useNavigate();
   const { data, isLoading, error } = useQuery({
     queryKey: ["projects"],
-    queryFn: ({ signal }) => karma.listProjects(signal),
+    queryFn: async ({ signal }) => {
+      const { data, error } = await karma.GET("/projects", { signal });
+      if (error) throw new Error(`GET /projects failed: ${JSON.stringify(error)}`);
+      return data as ProjectFilterOption[];
+    },
   });
 
   if (isLoading) {
@@ -40,7 +44,6 @@ export default function Palace() {
     );
   }
 
-  // Sort by session_count descending — most-used projects surface first.
   const sorted = [...projects].sort((a, b) => b.session_count - a.session_count);
 
   return (
@@ -58,7 +61,7 @@ export default function Palace() {
             project={project}
             allProjectIds={allIds}
             onClick={() =>
-              navigate(`/search?project=${encodeURIComponent(project.encoded_name)}`)
+              navigate(`/sessions?project=${encodeURIComponent(project.encoded_name)}`)
             }
           />
         ))}

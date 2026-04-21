@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { Grid3x3, Search } from "lucide-react";
+import { Grid3x3, Layers } from "lucide-react";
 import type { ReactNode } from "react";
 
 const linkBase =
@@ -24,13 +24,13 @@ export default function NavShell({ children }: { children: ReactNode }) {
               Palace
             </NavLink>
             <NavLink
-              to="/search"
+              to="/sessions"
               className={({ isActive }) =>
                 `${linkBase} ${isActive ? linkActive : linkIdle}`
               }
             >
-              <Search className="size-4" />
-              Search
+              <Layers className="size-4" />
+              Sessions
             </NavLink>
           </nav>
           <div className="ml-auto text-xs text-muted-foreground">

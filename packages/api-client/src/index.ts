@@ -1,45 +1,23 @@
-import type { AllSessionsResponse, ProjectFilterOption } from "./types";
+import createFetchClient from "openapi-fetch";
+import type { paths, components } from "./openapi";
 
-export * from "./types";
+export type { paths, components } from "./openapi";
 
-export type ClientOptions = {
-  /** Base URL of the claude-code-karma API. Defaults to http://localhost:8000. */
-  baseUrl?: string;
-};
+// Convenient aliases for the schemas apps/web touches most. Extend this list
+// as more pages come online — never hand-edit openapi.ts; re-run `bun run codegen`.
+export type Schema<K extends keyof components["schemas"]> = components["schemas"][K];
 
-export class KarmaClient {
-  private readonly baseUrl: string;
+export type ProjectFilterOption = Schema<"ProjectFilterOption">;
+export type SessionSummary = Schema<"SessionSummary">;
+export type AllSessionsResponse = Schema<"AllSessionsResponse">;
 
-  constructor(options: ClientOptions = {}) {
-    const base = options.baseUrl ?? "http://localhost:8000";
-    this.baseUrl = base.replace(/\/$/, "");
-  }
+export type KarmaClient = ReturnType<typeof createFetchClient<paths>>;
 
-  /**
-   * List every project karma has indexed. One tile per entry in the palace.
-   * Endpoint: GET /projects  →  ProjectFilterOption[]
-   */
-  async listProjects(signal?: AbortSignal): Promise<ProjectFilterOption[]> {
-    return this.fetchJson<ProjectFilterOption[]>("/projects", signal);
-  }
-
-  /**
-   * Fetch sessions for search. v0 pulls a large page and filters client-side
-   * to match claude-code-karma's own SvelteKit search behavior.
-   * Endpoint: GET /sessions/all?limit=N  →  AllSessionsResponse
-   */
-  async listAllSessions(limit = 1000, signal?: AbortSignal): Promise<AllSessionsResponse> {
-    return this.fetchJson<AllSessionsResponse>(`/sessions/all?limit=${limit}`, signal);
-  }
-
-  private async fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, { signal });
-    if (!res.ok) {
-      throw new Error(`karma API ${path} → HTTP ${res.status} ${res.statusText}`);
-    }
-    return res.json() as Promise<T>;
-  }
+export function createKarmaClient(baseUrl = "http://localhost:8000"): KarmaClient {
+  return createFetchClient<paths>({
+    baseUrl: baseUrl.replace(/\/$/, ""),
+  });
 }
 
-/** Default singleton that hits localhost:8000. Convenient for app-level use. */
-export const karma = new KarmaClient();
+/** Default singleton client hitting localhost:8000. */
+export const karma = createKarmaClient();

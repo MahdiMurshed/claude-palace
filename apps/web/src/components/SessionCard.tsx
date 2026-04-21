@@ -9,8 +9,9 @@ type Props = {
 };
 
 export default function SessionCard({ session, allProjectIds = [] }: Props) {
+  const titles = session.session_titles ?? [];
   const title =
-    session.session_titles[0] ?? session.chain_title ?? truncate(session.initial_prompt, 80) ?? "(untitled)";
+    titles[0] ?? session.chain_title ?? truncate(session.initial_prompt, 80) ?? "(untitled)";
   const projectId = session.project_encoded_name ?? "";
   const color = projectId ? projectColor(projectId, allProjectIds) : null;
   const projectLabel =
@@ -44,9 +45,9 @@ export default function SessionCard({ session, allProjectIds = [] }: Props) {
               {truncate(session.initial_prompt, 160)}
             </div>
           )}
-          {session.git_branches.length > 0 && (
+          {(session.git_branches ?? []).length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
-              {session.git_branches.slice(0, 3).map((b) => (
+              {(session.git_branches ?? []).slice(0, 3).map((b) => (
                 <span
                   key={b}
                   className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground"

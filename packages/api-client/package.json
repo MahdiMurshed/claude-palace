@@ -9,10 +9,15 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "codegen": "openapi-typescript http://localhost:8000/openapi.json -o src/openapi.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
   }
 }
